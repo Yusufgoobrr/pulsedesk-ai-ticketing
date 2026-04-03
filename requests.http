@@ -11,7 +11,7 @@ Content-Type: application/json
 {
   "content": "I cannot log into my account, it keeps failing.",
   "author": "Yusuf",
-  "sourceChannel": "EMAIL"
+  "sourceChannel": "ACCOUNT"
 }
 
 ### Create positive comment (should NOT create ticket ideally)
@@ -19,7 +19,7 @@ POST http://localhost:8080/api/v1/comments
 Content-Type: application/json
 
 {
-  "comment": "I experience a login problem with my widget",
+  "comment": "I liked the app.",
   "author": "User123",
   "sourceChannel": "CHAT_WIDGET"
 }
@@ -31,7 +31,7 @@ Content-Type: application/json
 {
   "content": "I was charged twice for my subscription.",
   "author": "CustomerX",
-  "sourceChannel": "MOBILE"
+  "sourceChannel": "ACCOUNT"
 }
 
 ### Get all tickets

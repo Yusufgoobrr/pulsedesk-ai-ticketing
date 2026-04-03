@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
@@ -50,36 +51,63 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
     }
 
-//    @ExceptionHandler(HttpMessageNotReadableException.class)
-//    public ResponseEntity<ErrorResponse> handleInvalidEnum(HttpMessageNotReadableException ex, HttpServletRequest request) {
-//        Throwable cause = ex.getCause();
-//        if (cause instanceof JsonParseException) {
-//            return ResponseEntity.badRequest()
-//                    .body(new ErrorResponse(ex.getMessage(),
-//                            HttpStatus.NOT_FOUND.getReasonPhrase(),
-//                            HttpStatus.NOT_FOUND.value(),
-//                            request.getRequestURI(),
-//                            Instant.now()));
-//        }
-//        if (cause instanceof InvalidFormatException invalidFormat &&
-//                invalidFormat.getTargetType() != null &&
-//                invalidFormat.getTargetType().isEnum()) {
-//            String invalid = invalidFormat.getValue().toString();
-//            List<String> valid = Arrays.stream(invalidFormat.getTargetType().getEnumConstants())
-//                    .map(Object::toString)
-//                    .toList();
-//            ErrorResponse error = new ErrorResponse(
-//                    ex.getMessage(),
-//                    HttpStatus.NOT_FOUND.getReasonPhrase(),
-//                    HttpStatus.NOT_FOUND.value(),
-//                    request.getRequestURI(),
-//                    Instant.now()
-//            );
-//
-//            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
-//        }
-//
-//    }
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidEnum(HttpMessageNotReadableException ex, HttpServletRequest request) {
+        Throwable cause = ex.getCause();
+        if (cause instanceof JsonParseException) {
+            return ResponseEntity.badRequest()
+                    .body(new ErrorResponse(ex.getMessage(),
+                            HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                            HttpStatus.BAD_REQUEST.value(),
+                            request.getRequestURI(),
+                            Instant.now()));
+        }
+        if (cause instanceof InvalidFormatException invalidFormat &&
+                invalidFormat.getTargetType() != null &&
+                invalidFormat.getTargetType().isEnum()) {
+            String invalid = invalidFormat.getValue().toString();
+            List<String> valid = Arrays.stream(invalidFormat.getTargetType().getEnumConstants())
+                    .map(Object::toString)
+                    .toList();
+            ErrorResponse error = new ErrorResponse(
+                    ex.getMessage(),
+                    HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                    HttpStatus.BAD_REQUEST.value(),
+                    request.getRequestURI(),
+                    Instant.now()
+            );
+
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        }
+        ErrorResponse error = new ErrorResponse(
+                "Request body is invalid",
+                HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                HttpStatus.BAD_REQUEST.value(),
+                request.getRequestURI(),
+                Instant.now()
+        );
+
+        return ResponseEntity.badRequest().body(error);
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNotValidException ex, HttpServletRequest request) {
+        String message = ex.getBindingResult().getFieldErrors()
+                .stream()
+                .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                .findFirst()
+                .orElse("Validation failed");
+        ;
+
+        ErrorResponse error = new ErrorResponse(
+                message,
+                HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                HttpStatus.BAD_REQUEST.value(),
+                request.getRequestURI(),
+                Instant.now()
+        );
+        return ResponseEntity.badRequest().body(error);
+    }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(
