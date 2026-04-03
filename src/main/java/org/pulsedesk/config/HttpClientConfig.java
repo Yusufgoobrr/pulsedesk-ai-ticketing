@@ -29,7 +29,6 @@ public class HttpClientConfig {
                         builder.baseUrl("https://router.huggingface.co/v1")
                                 .defaultHeader("Authorization", "Bearer " + huggingFaceToken)
                                 .build();
-
                     });
         };
     }
