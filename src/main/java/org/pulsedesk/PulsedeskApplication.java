@@ -23,28 +23,4 @@ public class PulsedeskApplication {
     }
 
 
-    @Bean
-    CommandLineRunner runner(HuggingFaceService huggingFaceService) {
-        return args -> {
-            try {
-                String prompt = "who is amigoscode";
-
-                if (prompt == null || prompt.isBlank()) {
-                    throw new IllegalArgumentException("Prompt must not be empty");
-                }
-
-                HuggingFaceRequest request = new HuggingFaceRequest(
-                        aiModel,
-                        List.of(new HuggingFaceRequest.Message("user", prompt.trim())),
-                        false
-                );
-
-                var response = huggingFaceService.completion(request);
-                System.out.println(response);
-
-            } catch (Exception ex) {
-                System.err.println("AI request failed: " + ex.getMessage());
-            }
-        };
-    }
 }
