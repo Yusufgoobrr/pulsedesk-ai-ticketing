@@ -23,24 +23,26 @@ public class CommentAnalysisService {
     private final HuggingFaceService huggingFaceService;
     private final TicketRepository ticketRepository;
     private final ObjectMapper objectMapper;
+    private final String aiModel;
 
-    @Value("${ai.model}")
-    private String aiModel;
-    @Value("classpath:/prompts/system-message.txt")
-    private Resource systemResource;
+    private final Resource systemMessageResource;
 
     public CommentAnalysisService(HuggingFaceService huggingFaceService,
                                   TicketRepository ticketRepository,
-                                  ObjectMapper objectMapper) {
+                                  ObjectMapper objectMapper,
+                                  @Value("${ai.model}") String aiModel,
+                                  @Value("classpath:/prompts/system-message.txt") Resource systemMessageResource) {
         this.huggingFaceService = huggingFaceService;
         this.ticketRepository = ticketRepository;
         this.objectMapper = objectMapper;
+        this.aiModel = aiModel;
+        this.systemMessageResource = systemMessageResource;
     }
 
     @Async
     public CompletableFuture<CommentAnalysisResult> analyzeAndCreateTicket(Comment comment) {
         try {
-            String prompt = systemResource.getContentAsString(StandardCharsets.UTF_8);
+            String prompt = systemMessageResource.getContentAsString(StandardCharsets.UTF_8);
 
             HuggingFaceRequest request = new HuggingFaceRequest(
                     aiModel,
@@ -66,7 +68,7 @@ public class CommentAnalysisService {
 
             return CompletableFuture.completedFuture(result);
         } catch (Exception e) {
-            throw new AiAnalysisException("Failed to analyze comment with AI", e);
+            throw new AiAnalysisException("Failed to analyze comment with AI: " + e.getLocalizedMessage() , e);
         }
     }
 }

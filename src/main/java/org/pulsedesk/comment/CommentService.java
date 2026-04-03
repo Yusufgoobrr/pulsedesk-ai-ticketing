@@ -28,7 +28,6 @@ public class CommentService {
     public Long createNewComment(@NonNull NewCommentRequest newCommentRequest) {
         Comment comment = new Comment(newCommentRequest.comment(), newCommentRequest.sourceChannel());
         commentRepository.save(comment);
-        // this is async
         commentAnalysisService.analyzeAndCreateTicket(comment);
         return comment.getId();
     }

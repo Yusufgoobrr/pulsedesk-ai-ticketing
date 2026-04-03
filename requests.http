@@ -9,9 +9,9 @@ POST http://localhost:8080/api/v1/comments
 Content-Type: application/json
 
 {
-  "content": "I cannot log into my account, it keeps failing.",
+  "comment": "I cannot log into my account, it keeps failing.",
   "author": "Yusuf",
-  "sourceChannel": "ACCOUNT"
+  "sourceChannel": "APP_REVIEW"
 }
 
 ### Create positive comment (should NOT create ticket ideally)
