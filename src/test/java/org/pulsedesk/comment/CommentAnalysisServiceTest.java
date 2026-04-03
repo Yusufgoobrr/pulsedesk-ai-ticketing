@@ -17,7 +17,6 @@ import org.pulsedesk.ticket.TicketCategory;
 import org.pulsedesk.ticket.TicketPriority;
 import org.pulsedesk.ticket.TicketRepository;
 import org.springframework.core.io.Resource;
-import org.springframework.test.context.TestPropertySource;
 
 import java.io.IOException;
 import java.util.List;

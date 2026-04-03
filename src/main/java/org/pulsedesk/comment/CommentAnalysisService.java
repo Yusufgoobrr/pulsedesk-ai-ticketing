@@ -68,7 +68,7 @@ public class CommentAnalysisService {
 
             return CompletableFuture.completedFuture(result);
         } catch (Exception e) {
-            throw new AiAnalysisException("Failed to analyze comment with AI: " + e.getLocalizedMessage() , e);
+            throw new AiAnalysisException("Failed to analyze comment with AI: " + e.getLocalizedMessage(), e);
         }
     }
 }
