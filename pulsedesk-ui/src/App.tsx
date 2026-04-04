@@ -329,11 +329,19 @@ function App() {
                         </h3>
                         <button
                           type="button"
-                          className="btn btn--ghost btn--compact"
+                          className="btn btn--ghost btn--compact ticket-detail__close"
                           onClick={() => setSelectedTicketId(null)}
                         >
                           Close
                         </button>
+                      </div>
+                      <div className="ticket-detail__meta">
+                        <span className="tag">{ticketDetail.category}</span>
+                        <span
+                          className={`pill pill--${ticketDetail.priority.toLowerCase()}`}
+                        >
+                          {ticketDetail.priority}
+                        </span>
                       </div>
                       <p className="ticket-detail__summary">
                         {ticketDetail.summary}
