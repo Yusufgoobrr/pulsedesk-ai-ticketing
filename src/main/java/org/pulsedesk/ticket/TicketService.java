@@ -19,7 +19,8 @@ public class TicketService {
                         ticket.getId(),
                         ticket.getTitle(),
                         ticket.getCategory(),
-                        ticket.getPriority()
+                        ticket.getPriority(),
+                        ticket.getSummary()
                 ));
     }
 

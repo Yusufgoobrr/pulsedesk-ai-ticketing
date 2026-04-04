@@ -2,25 +2,30 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type FormEvent,
 } from 'react'
 import './App.css'
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? ''
+const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined)?.replace(
+  /\/$/,
+  '',
+) ?? ''
+
+function apiUrl(path: string): string {
+  const p = path.startsWith('/') ? path : `/${path}`
+  if (API_BASE === '') return p
+  return `${API_BASE}${p}`
+}
 
 /** Keeps the ticket panel within the viewport without scrolling */
 const TICKETS_PER_PAGE = 5
 
-type TicketSummary = {
-  id: number
-  title: string
-  category: string
-  priority: string
-}
+/** Second tickets pull after comment — catches tickets that appear slightly after POST */
+const TICKETS_REFRESH_AFTER_COMMENT_MS = 10_000
 
-/** Matches `TicketResponse` from GET /api/v1/tickets/{id} */
-type TicketDetail = {
+type TicketSummary = {
   id: number
   title: string
   category: string
@@ -43,7 +48,9 @@ const SOURCE_OPTIONS: { value: SourceChannel; label: string }[] = [
 ]
 
 async function fetchTickets(): Promise<TicketSummary[]> {
-  const res = await fetch(`${API_BASE}/api/v1/tickets?size=100`)
+  const res = await fetch(apiUrl('/api/v1/tickets?size=100'), {
+    cache: 'no-store',
+  })
   if (!res.ok) {
     throw new Error(`Failed to load tickets (${res.status})`)
   }
@@ -51,19 +58,11 @@ async function fetchTickets(): Promise<TicketSummary[]> {
   return data.content ?? []
 }
 
-async function fetchTicketDetail(id: number): Promise<TicketDetail> {
-  const res = await fetch(`${API_BASE}/api/v1/tickets/${id}`)
-  if (!res.ok) {
-    throw new Error(`Failed to load ticket (${res.status})`)
-  }
-  return res.json() as Promise<TicketDetail>
-}
-
 async function submitComment(
   text: string,
   sourceChannel: SourceChannel,
 ): Promise<void> {
-  const res = await fetch(`${API_BASE}/api/v1/comments`, {
+  const res = await fetch(apiUrl('/api/v1/comments'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -74,6 +73,7 @@ async function submitComment(
   if (!res.ok) {
     throw new Error(`Failed to submit comment (${res.status})`)
   }
+  await res.text()
 }
 
 function App() {
@@ -85,10 +85,15 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const [submitMessage, setSubmitMessage] = useState<string | null>(null)
   const [ticketPage, setTicketPage] = useState(0)
-  const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null)
-  const [ticketDetail, setTicketDetail] = useState<TicketDetail | null>(null)
-  const [detailLoading, setDetailLoading] = useState(false)
-  const [detailError, setDetailError] = useState<string | null>(null)
+
+  /** Bumped only when scheduling a new post-submit refresh; never on effect cleanup (avoids Strict Mode breaking timers). */
+  const postCommentRefreshIdRef = useRef(0)
+  const postCommentRefreshTimeoutRef = useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null)
+  const loadTicketsRef = useRef<
+    (opts?: { silent?: boolean }) => Promise<void>
+  >(async () => {})
 
   const ticketPages = useMemo(() => {
     const pages = Math.max(1, Math.ceil(tickets.length / TICKETS_PER_PAGE))
@@ -105,55 +110,42 @@ function App() {
     setTicketPage((p) => Math.min(p, maxPage))
   }, [tickets.length])
 
-  const loadTickets = useCallback(async () => {
-    setError(null)
-    setLoadingTickets(true)
+  const loadTickets = useCallback(async (opts?: { silent?: boolean }) => {
+    const silent = opts?.silent === true
+    if (!silent) {
+      setError(null)
+      setLoadingTickets(true)
+    }
     try {
       setTickets(await fetchTickets())
+      if (silent) setError(null)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not load tickets')
-      setTickets([])
+      const msg = e instanceof Error ? e.message : 'Could not load tickets'
+      if (!silent) {
+        setError(msg)
+        setTickets([])
+      } else {
+        setError(msg)
+      }
     } finally {
-      setLoadingTickets(false)
+      if (!silent) setLoadingTickets(false)
     }
   }, [])
+
+  loadTicketsRef.current = loadTickets
 
   useEffect(() => {
     void loadTickets()
   }, [loadTickets])
 
   useEffect(() => {
-    if (selectedTicketId == null) {
-      setTicketDetail(null)
-      setDetailError(null)
-      setDetailLoading(false)
-      return
-    }
-
-    let cancelled = false
-    setTicketDetail(null)
-    setDetailLoading(true)
-    setDetailError(null)
-    void fetchTicketDetail(selectedTicketId)
-      .then((detail) => {
-        if (!cancelled) setTicketDetail(detail)
-      })
-      .catch((e) => {
-        if (!cancelled) {
-          setTicketDetail(null)
-          setDetailError(
-            e instanceof Error ? e.message : 'Could not load ticket details',
-          )
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setDetailLoading(false)
-      })
-
     return () => {
-      cancelled = true
+      if (postCommentRefreshTimeoutRef.current != null) {
+        clearTimeout(postCommentRefreshTimeoutRef.current)
+        postCommentRefreshTimeoutRef.current = null
+      }
     }
-  }, [selectedTicketId])
+  }, [])
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -163,12 +155,27 @@ function App() {
     setSubmitMessage(null)
     setError(null)
     setSubmitting(true)
+
     try {
+      if (postCommentRefreshTimeoutRef.current != null) {
+        clearTimeout(postCommentRefreshTimeoutRef.current)
+        postCommentRefreshTimeoutRef.current = null
+      }
+
       await submitComment(trimmed, sourceChannel)
       setComment('')
-      setSubmitMessage('Comment submitted. A support ticket may be created after analysis.')
       setTicketPage(0)
-      await loadTickets()
+      setSubmitMessage('Comment submitted')
+
+      const refreshRunId = ++postCommentRefreshIdRef.current
+
+      await loadTicketsRef.current({ silent: true })
+
+      postCommentRefreshTimeoutRef.current = globalThis.setTimeout(() => {
+        postCommentRefreshTimeoutRef.current = null
+        if (postCommentRefreshIdRef.current !== refreshRunId) return
+        void loadTicketsRef.current({ silent: true })
+      }, TICKETS_REFRESH_AFTER_COMMENT_MS)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Submit failed')
     } finally {
@@ -267,89 +274,53 @@ function App() {
           ) : (
             <>
               <ul className="ticket-list">
-                {ticketPages.slice.map((t) => (
+                {ticketPages.slice.map((t) => {
+                  const summaryText = (t.summary ?? '').trim()
+                  const hasSummary = summaryText !== ''
+                  return (
                   <li key={t.id} className="ticket-list__item">
-                    <button
-                      type="button"
-                      className={`ticket-card${
-                        selectedTicketId === t.id ? ' ticket-card--selected' : ''
-                      }`}
+                    <article
+                      className="ticket-card"
                       data-category={t.category}
-                      aria-pressed={selectedTicketId === t.id}
-                      aria-expanded={
-                        selectedTicketId === t.id &&
-                        (!!ticketDetail || detailLoading || !!detailError)
-                      }
-                      aria-controls="ticket-summary-panel"
-                      onClick={() =>
-                        setSelectedTicketId((cur) =>
-                          cur === t.id ? null : t.id,
-                        )
-                      }
+                      aria-labelledby={`ticket-${t.id}-title`}
+                      aria-describedby={`ticket-${t.id}-summary`}
                     >
-                      <span className="ticket-card__title">{t.title}</span>
-                      <span className="ticket-card__meta">
-                        <span className="tag">{t.category}</span>
-                        <span
-                          className={`pill pill--${t.priority.toLowerCase()}`}
+                      <div className="ticket-card__head">
+                        <h3
+                          className="ticket-card__title"
+                          id={`ticket-${t.id}-title`}
                         >
-                          {t.priority}
-                        </span>
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-
-              {selectedTicketId != null ? (
-                <div
-                  id="ticket-summary-panel"
-                  className="ticket-detail"
-                  role="region"
-                  aria-label="Ticket summary"
-                  data-category={
-                    ticketDetail?.category ??
-                    ticketPages.slice.find((x) => x.id === selectedTicketId)
-                      ?.category
-                  }
-                >
-                  {detailLoading ? (
-                    <p className="muted ticket-detail__status">
-                      Loading summary…
-                    </p>
-                  ) : detailError ? (
-                    <p className="feedback feedback--err" role="alert">
-                      {detailError}
-                    </p>
-                  ) : ticketDetail ? (
-                    <>
-                      <div className="ticket-detail__head">
-                        <h3 className="ticket-detail__title">
-                          {ticketDetail.title}
+                          {t.title}
                         </h3>
-                        <button
-                          type="button"
-                          className="btn btn--ghost btn--compact ticket-detail__close"
-                          onClick={() => setSelectedTicketId(null)}
-                        >
-                          Close
-                        </button>
+                        <div className="ticket-card__meta">
+                          <span className="tag">{t.category}</span>
+                          <span
+                            className={`pill pill--${t.priority.toLowerCase()}`}
+                          >
+                            {t.priority}
+                          </span>
+                        </div>
                       </div>
-                      <div className="ticket-detail__meta">
-                        <span className="tag">{ticketDetail.category}</span>
-                        <span
-                          className={`pill pill--${ticketDetail.priority.toLowerCase()}`}
+                      <div className="ticket-card__summary-block">
+                        <div
+                          className="ticket-card__summary-heading"
+                          id={`ticket-${t.id}-summary-h`}
                         >
-                          {ticketDetail.priority}
-                        </span>
+                          Summary
+                        </div>
+                        <p
+                          className={`ticket-card__summary${hasSummary ? '' : ' ticket-card__summary--empty'}`}
+                          id={`ticket-${t.id}-summary`}
+                          aria-labelledby={`ticket-${t.id}-summary-h`}
+                        >
+                          {hasSummary ? summaryText : 'No summary yet.'}
+                        </p>
                       </div>
-                      <p className="ticket-detail__summary">
-                        {ticketDetail.summary}
-                      </p>
-                    </>
-                  ) : null}
-                </div>
-              ) : null}
+                    </article>
+                  </li>
+                  )
+                })}
+              </ul>
             </>
           )}
         </div>

@@ -1,6 +1,7 @@
 package org.pulsedesk.comment;
 
 import jakarta.persistence.*;
+import org.pulsedesk.ticket.Ticket;
 
 import java.util.Objects;
 
@@ -17,6 +18,9 @@ public class Comment {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private CommentSourceChannel sourceChannel;
+    
+    @OneToOne(mappedBy = "comment")
+    private Ticket ticket;
 
     public Comment() {
     }

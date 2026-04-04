@@ -1,6 +1,7 @@
 package org.pulsedesk.ticket;
 
 import jakarta.persistence.*;
+import org.pulsedesk.comment.Comment;
 
 @Entity
 public class Ticket {
@@ -20,6 +21,10 @@ public class Ticket {
 
     @Column(nullable = false)
     private String summary;
+
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "comment_id", referencedColumnName = "id")
+    private Comment comment;
 
     public Ticket() {
     }

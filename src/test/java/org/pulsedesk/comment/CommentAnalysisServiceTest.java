@@ -8,7 +8,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.pulsedesk.ai.ChatCompletionResponse;
-import org.pulsedesk.ai.CommentAnalysisResult;
 import org.pulsedesk.ai.HuggingFaceRequest;
 import org.pulsedesk.ai.HuggingFaceService;
 import org.pulsedesk.exception.AiAnalysisException;
@@ -20,8 +19,6 @@ import org.springframework.core.io.Resource;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -77,13 +74,20 @@ class CommentAnalysisServiceTest {
                 )
         )).thenReturn(chatCompletionResponse);
 
+        when(ticketRepository.save(any(Ticket.class))).thenAnswer(invocation -> {
+            Ticket t = invocation.getArgument(0);
+            t.setId(77L);
+            return t;
+        });
+
         // when
-        CompletableFuture<CommentAnalysisResult> actual = commentAnalysisService.analyzeAndCreateTicket(comment);
+        CommentTicketOutcome outcome = commentAnalysisService.analyzeAndCreateTicket(comment).join();
 
         // then
         ArgumentCaptor<Ticket> ticketArgumentCaptor = ArgumentCaptor.forClass(Ticket.class);
         verify(ticketRepository).save(ticketArgumentCaptor.capture());
         var ticket = ticketArgumentCaptor.getValue();
+        assertThat(outcome.ticketId()).isEqualTo(77L);
         assertThat(ticket.getTitle()).isEqualTo("Login Issue");
         assertThat(ticket.getCategory()).isEqualTo(TicketCategory.ACCOUNT);
         assertThat(ticket.getPriority()).isEqualTo(TicketPriority.HIGH);
@@ -112,9 +116,10 @@ class CommentAnalysisServiceTest {
         )).thenReturn(chatCompletionResponse);
 
         // when
-        CompletableFuture<CommentAnalysisResult> actual = commentAnalysisService.analyzeAndCreateTicket(comment);
+        CommentTicketOutcome outcome = commentAnalysisService.analyzeAndCreateTicket(comment).join();
 
         // then
+        assertThat(outcome.ticketId()).isNull();
         verify(ticketRepository, never()).save(any(Ticket.class));
     }
 

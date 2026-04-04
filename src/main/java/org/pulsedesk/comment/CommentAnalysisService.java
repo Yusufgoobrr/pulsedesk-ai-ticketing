@@ -40,7 +40,7 @@ public class CommentAnalysisService {
     }
 
     @Async
-    public CompletableFuture<CommentAnalysisResult> analyzeAndCreateTicket(Comment comment) {
+    public CompletableFuture<CommentTicketOutcome> analyzeAndCreateTicket(Comment comment) {
         try {
             String prompt = systemMessageResource.getContentAsString(StandardCharsets.UTF_8);
 
@@ -64,9 +64,10 @@ public class CommentAnalysisService {
                         result.summary()
                 );
                 ticketRepository.save(ticket);
+                return CompletableFuture.completedFuture(new CommentTicketOutcome(ticket.getId()));
             }
 
-            return CompletableFuture.completedFuture(result);
+            return CompletableFuture.completedFuture(new CommentTicketOutcome(null));
         } catch (Exception e) {
             throw new AiAnalysisException("Failed to analyze comment with AI: " + e.getLocalizedMessage(), e);
         }

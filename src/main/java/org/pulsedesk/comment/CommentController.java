@@ -27,10 +27,10 @@ public class CommentController {
     }
 
     @PostMapping
-    public ResponseEntity<Long> createNewComment(
+    public ResponseEntity<CreateCommentResponse> createNewComment(
             @Valid @RequestBody NewCommentRequest newCommentRequest
     ) {
-        Long id = commentService.createNewComment(newCommentRequest);
-        return ResponseEntity.status(HttpStatus.CREATED).body(id);
+        CreateCommentResponse body = commentService.createNewComment(newCommentRequest);
+        return ResponseEntity.status(HttpStatus.CREATED).body(body);
     }
 }

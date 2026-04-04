@@ -47,6 +47,7 @@ class TicketServiceTest {
         TicketSummaryResponse t = result.getContent().getFirst();
         assertThat(t.id()).isEqualTo(1L);
         assertThat(t.title()).isEqualTo("Login issue");
+        assertThat(t.summary()).isEqualTo("User cannot login");
     }
 
     @Test

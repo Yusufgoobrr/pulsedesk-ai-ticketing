@@ -11,6 +11,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -60,12 +61,15 @@ class CommentServiceTest {
             c.setId(5L);
             return c;
         });
+        when(commentAnalysisService.analyzeAndCreateTicket(any())).thenReturn(
+                CompletableFuture.completedFuture(new CommentTicketOutcome(12L)));
 
         // when
-        Long id = underTest.createNewComment(request);
+        CreateCommentResponse response = underTest.createNewComment(request);
 
         // then
-        assertThat(id).isEqualTo(5L);
+        assertThat(response.commentId()).isEqualTo(5L);
+        assertThat(response.ticketId()).isEqualTo(12L);
         verify(commentRepository).save(any(Comment.class));
         verify(commentAnalysisService).analyzeAndCreateTicket(any(Comment.class));
     }
