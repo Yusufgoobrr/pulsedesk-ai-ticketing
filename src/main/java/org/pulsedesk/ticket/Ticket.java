@@ -3,6 +3,8 @@ package org.pulsedesk.ticket;
 import jakarta.persistence.*;
 import org.pulsedesk.comment.Comment;
 
+import java.util.Objects;
+
 @Entity
 public class Ticket {
     @Id
@@ -84,4 +86,23 @@ public class Ticket {
         this.summary = summary;
     }
 
+    public Comment getComment() {
+        return comment;
+    }
+
+    public void setComment(Comment comment) {
+        this.comment = comment;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || getClass() != o.getClass()) return false;
+        Ticket ticket = (Ticket) o;
+        return Objects.equals(id, ticket.id) && Objects.equals(title, ticket.title) && category == ticket.category && priority == ticket.priority && Objects.equals(summary, ticket.summary) && Objects.equals(comment, ticket.comment);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, title, category, priority, summary, comment);
+    }
 }

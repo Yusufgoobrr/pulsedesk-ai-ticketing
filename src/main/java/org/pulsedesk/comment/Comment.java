@@ -18,7 +18,7 @@ public class Comment {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private CommentSourceChannel sourceChannel;
-    
+
     @OneToOne(mappedBy = "comment")
     private Ticket ticket;
 
@@ -58,6 +58,14 @@ public class Comment {
 
     public void setSourceChannel(CommentSourceChannel sourceChannel) {
         this.sourceChannel = sourceChannel;
+    }
+
+    public Ticket getTicket() {
+        return ticket;
+    }
+
+    public void setTicket(Ticket ticket) {
+        this.ticket = ticket;
     }
 
     @Override
