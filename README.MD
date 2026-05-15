@@ -9,7 +9,7 @@
 
 PulseDesk is a full-stack AI-powered ticketing system that ingests user comments from multiple source channels, analyzes their intent and sentiment using Hugging Face models, and automatically generates prioritized support tickets. It is designed for support teams that want to eliminate manual ticket triage and reduce response time.
 
-**Live app:** [https://pulsedesk-production-56ff.up.railway.app](https://pulsedesk-production-56ff.up.railway.app)
+**Live app:** [https://pulsedesk-production-18ba.up.railway.app](https://pulsedesk-production-18ba.up.railway.app)
 
 ---
 
@@ -92,7 +92,7 @@ cp .env.example .env
 
 ## 🌍 Deployment
 
-The app is live at **[https://pulsedesk-production-56ff.up.railway.app](https://pulsedesk-production-56ff.up.railway.app)**, hosted on Railway.
+The app is live at **[https://pulsedesk-production-18ba.up.railway.app](https://pulsedesk-production-18ba.up.railway.app)**, hosted on Railway.
 
 You can also run it yourself using any of the three options below. All options require a Hugging Face API token passed as `HF_TOKEN`.
 
